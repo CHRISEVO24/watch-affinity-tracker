@@ -94,15 +94,33 @@ async function main() {
 
   console.log(`API returned ${raw.length} total items`);
 
-  // Jewelry / non-watch keywords to exclude
-  const JEWELRY_RE = /\b(ring|earring|necklace|bracelet|pendant|chain|bangle|brooch|cufflink|anklet|charm)\b/i;
+  // Known watch brands — items from these brands are never excluded
+  const WATCH_BRANDS = new Set([
+    'rolex','omega','breitling','tudor','cartier','audemars piguet','patek philippe',
+    'iwc','panerai','jaeger-lecoultre','vacheron constantin','hublot','tag heuer',
+    'grand seiko','seiko','citizen','hamilton','longines','tissot','zenith',
+    'chopard','richard mille','bell & ross','oris','doxa','franck muller',
+    'ulysse nardin','girard-perregaux','blancpain','breguet','bvlgari','bulgari',
+    'a. lange & sohne','glashutte original','nomos','rado','movado','baume & mercier',
+    'frederique constant','montblanc','corum','graham','concord','gerald genta',
+    'harry winston','piaget','roger dubuis','mb&f','fp journe','jacob & co',
+    'carl f. bucherer','victorinox','casio','g-shock','swatch','timex','orient',
+    'ball','certina','mido','cabot watch','elgin','cccp','gruen'
+  ]);
+
+  // Jewelry keywords — only checked for non-watch brands
+  const JEWELRY_RE = /\b(ring|signet|earring|necklace|pendant|bangle|brooch|cufflink|anklet|charm)\b/i;
 
   // Filter for in-stock watches only (exclude jewelry & non-watch items)
   const inStock = raw.filter(item => {
     const status = (item.status || '').toLowerCase();
     if (status !== 'available') return false;
 
-    // Exclude jewelry based on brand, model, or reference
+    // Known watch brand — always keep
+    const brand = (item.brand || '').toLowerCase().trim();
+    if (WATCH_BRANDS.has(brand)) return true;
+
+    // Unknown brand — check for jewelry keywords in brand+model+reference
     const haystack = `${item.brand || ''} ${item.model || ''} ${item.reference || ''}`;
     if (JEWELRY_RE.test(haystack)) {
       console.log(`  Excluded (jewelry): ${item.brand} ${item.model} [${item.sku}]`);
