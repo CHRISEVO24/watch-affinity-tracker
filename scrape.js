@@ -94,10 +94,21 @@ async function main() {
 
   console.log(`API returned ${raw.length} total items`);
 
-  // Filter for in-stock only (status "Available" case-insensitive)
+  // Jewelry / non-watch keywords to exclude
+  const JEWELRY_RE = /\b(ring|earring|necklace|bracelet|pendant|chain|bangle|brooch|cufflink|anklet|charm)\b/i;
+
+  // Filter for in-stock watches only (exclude jewelry & non-watch items)
   const inStock = raw.filter(item => {
     const status = (item.status || '').toLowerCase();
-    return status === 'available';
+    if (status !== 'available') return false;
+
+    // Exclude jewelry based on brand, model, or reference
+    const haystack = \`\${item.brand || ''} \${item.model || ''} \${item.reference || ''}\`;
+    if (JEWELRY_RE.test(haystack)) {
+      console.log(\`  Excluded (jewelry): \${item.brand} \${item.model} [\${item.sku}]\`);
+      return false;
+    }
+    return true;
   });
 
   console.log(`In Stock (Available): ${inStock.length} watches`);
