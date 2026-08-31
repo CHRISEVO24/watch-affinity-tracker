@@ -1091,7 +1091,7 @@ function renderList(id, watches, type) {
 function card(w, type) {
   const isAdded = type === "added";
   const badge = isAdded ? `<span class="badge badge-added">✓ In Stock</span>` : `<span class="badge badge-sold">● Sold / Removed</span>`;
-  const link  = isAdded ? `<a class="card-link" href="${w.url}" target="_blank">View listing →</a>` : "";
+  const link  = w.url ? `<a class="card-link" href="${w.url}" target="_blank">View listing →</a>` : "";
   return `<div class="watch-card">
     <div class="card-top"><div class="card-name">${x(w.name)}</div><div class="card-price">${x(w.price)}</div></div>
     <div class="card-meta">${w.sku?`<span class="card-sku">${x(w.sku)}</span>`:""}${w.brand?`<span class="card-cat">${x(w.brand)}</span>`:""}</div>
