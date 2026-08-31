@@ -103,9 +103,9 @@ async function main() {
     if (status !== 'available') return false;
 
     // Exclude jewelry based on brand, model, or reference
-    const haystack = \`\${item.brand || ''} \${item.model || ''} \${item.reference || ''}\`;
+    const haystack = `${item.brand || ''} ${item.model || ''} ${item.reference || ''}`;
     if (JEWELRY_RE.test(haystack)) {
-      console.log(\`  Excluded (jewelry): \${item.brand} \${item.model} [\${item.sku}]\`);
+      console.log(`  Excluded (jewelry): ${item.brand} ${item.model} [${item.sku}]`);
       return false;
     }
     return true;
