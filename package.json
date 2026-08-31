@@ -1,0 +1,9 @@
+{
+  "name": "watch-affinity-tracker",
+  "version": "1.0.0",
+  "description": "Daily inventory tracker for Watch Affinity",
+  "main": "scrape.js",
+  "scripts": {
+    "scrape": "node scrape.js"
+  }
+}

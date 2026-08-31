@@ -1,0 +1,51 @@
+name: Watch Affinity Daily Inventory Scrape
+
+on:
+  schedule:
+    - cron: '1 10 * * *'
+    - cron: '1 19 * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run inventory scraper
+        run: |
+          for attempt in 1 2 3; do
+            echo "Scraper attempt $attempt of 3..."
+            node scrape.js && break
+            if [ $attempt -lt 3 ]; then
+              echo "Attempt $attempt failed, waiting 60s..."
+              sleep 60
+            else
+              echo "All 3 attempts failed"
+              exit 1
+            fi
+          done
+
+      - name: Commit updated files
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add history.json latest.json
+          git commit -m "Auto update [skip ci] - $(TZ='America/New_York' date '+%Y-%m-%d %H:%M ET')" || echo "No changes to commit"
+          git fetch origin main
+          git checkout -- .
+          git clean -fd
+          git rebase origin/main
+          git push

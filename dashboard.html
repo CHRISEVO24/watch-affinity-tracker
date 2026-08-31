@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watch Affinity — Inventory Tracker</title>
+<style>
+  :root {
+    --gold:#B8892A; --gold-lt:#FDF6E8;
+    --bg:#F4F5F7; --white:#FFFFFF; --border:#E0E3E8;
+    --text:#1A1D23; --muted:#6B7280; --light:#9CA3AF;
+    --green:#16A34A; --green-bg:#F0FDF4; --green-br:#BBF7D0;
+    --red:#DC2626; --red-bg:#FFF1F1; --red-br:#FECACA;
+    --blue:#2563EB; --blue-bg:#EFF6FF; --blue-br:#BFDBFE;
+    --radius:8px;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;font-size:14px;line-height:1.5;}
+
+  /* TABS */
+  .tab-bar{background:#1A1D23;display:flex;align-items:center;padding:0 20px;height:54px;gap:0;}
+  .logo-name{font-size:15px;font-weight:700;color:#fff;margin-right:24px;white-space:nowrap;}
+  .logo-tag{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-left:6px;}
+  .tab{background:transparent;border:none;border-bottom:3px solid transparent;color:#888;cursor:pointer;font-size:13px;font-weight:600;height:54px;padding:0 18px;letter-spacing:.02em;transition:color .15s,border-color .15s;white-space:nowrap;}
+  .tab:hover{color:#ccc;}
+  .tab.active{color:#fff;border-bottom-color:var(--gold);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  /* ── INVENTORY TAB ── */
+  .inv-toolbar{background:var(--white);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .inv-search-wrap{position:relative;flex:1;max-width:320px;}
+  .inv-search-wrap input{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;height:34px;padding:0 10px 0 30px;outline:none;width:100%;}
+  .inv-search-wrap input:focus{border-color:var(--gold);}
+  .search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--light);font-size:13px;pointer-events:none;}
+  .inv-count-badge{background:var(--bg);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:700;color:var(--muted);padding:3px 12px;white-space:nowrap;}
+  .xlsx-btn{background:#1D6F42;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:12px;font-weight:700;height:34px;letter-spacing:.04em;padding:0 16px;text-transform:uppercase;white-space:nowrap;transition:opacity .15s;}
+  .xlsx-btn:hover{opacity:.85;}
+  .xlsx-btn:disabled{opacity:.4;cursor:default;}
+
+  /* INVENTORY TABLE */
+  .inv-table-wrap{overflow:auto;max-height:calc(100vh - 54px - 58px - 42px);}
+  table{width:100%;border-collapse:collapse;}
+  thead th{background:var(--bg);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 14px;text-align:left;position:sticky;top:0;z-index:5;white-space:nowrap;cursor:pointer;user-select:none;transition:color .15s;}
+  thead th.sortable:hover{color:var(--gold);}
+  thead th.sort-asc::after{content:" ▲";color:var(--gold);}
+  thead th.sort-desc::after{content:" ▼";color:var(--gold);}
+  /* Filter row */
+  thead tr.filter-row th{padding:4px 6px;background:var(--white);border-bottom:2px solid var(--border);cursor:default;position:sticky;top:37px;z-index:5;}
+  .col-filter{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px;font-weight:400;letter-spacing:0;text-transform:none;height:26px;padding:0 7px;outline:none;cursor:text;}
+  .col-filter:focus{border-color:var(--gold);background:var(--white);}
+  .col-filter::placeholder{color:var(--light);}
+  /* Dropdown filters */
+  .col-filter-select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px;height:26px;padding:0 4px;outline:none;cursor:pointer;min-width:0;}
+  .col-filter-select:focus{border-color:var(--gold);background:var(--white);}
+  /* Active filter indicator */
+  th.filter-active .col-filter,th.filter-active .col-filter-select{border-color:var(--gold);background:#fffbf0;}
+  /* Toolbar dropdowns */
+  .toolbar-filter-group{display:flex;align-items:center;gap:6px;}
+  .toolbar-filter-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap;}
+  .toolbar-filter-select{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;height:32px;padding:0 8px;outline:none;cursor:pointer;max-width:160px;}
+  .toolbar-filter-select:focus{border-color:var(--gold);}
+  .toolbar-filter-select.active{border-color:var(--gold);background:#fffbf0;color:var(--gold);font-weight:700;}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+  tbody tr:hover{background:#FAFBFC;}
+  td{padding:10px 14px;vertical-align:middle;}
+  .td-name{font-weight:700;color:var(--text);font-size:13px;}
+  .td-sku{font-size:11px;font-weight:700;letter-spacing:.06em;font-family:monospace;color:var(--text);}
+  .td-ref{font-size:11px;color:var(--text);font-weight:600;}
+  .td-ref-empty{font-size:11px;color:var(--light);}
+  .td-stock-in{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--green-bg);color:var(--green);border:1px solid var(--green-br);}
+  .td-price{font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .td-cat{font-size:12px;color:var(--muted);}
+  .td-link a{color:var(--gold);font-size:11px;font-weight:700;text-decoration:none;}
+  .td-link a:hover{text-decoration:underline;}
+
+  /* ── CHANGES TAB ── */
+  .picker-bar{background:var(--white);border-bottom:2px solid var(--border);padding:14px 20px;display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;}
+  .picker-group{display:flex;flex-direction:column;gap:6px;}
+  .picker-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+  .picker-label span{font-weight:400;text-transform:none;letter-spacing:0;margin-left:4px;color:var(--light);}
+  select{background:var(--white);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;height:34px;padding:0 10px;outline:none;cursor:pointer;min-width:220px;max-width:320px;}
+  select:focus{border-color:var(--gold);}
+  .quick-wrap{display:flex;flex-direction:column;gap:6px;}
+  .quick-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+  .quick-btns{display:flex;gap:5px;flex-wrap:wrap;}
+  .qb{background:transparent;border:1px solid var(--border);border-radius:20px;color:var(--muted);cursor:pointer;font-size:11px;font-weight:600;height:28px;padding:0 12px;transition:all .15s;white-space:nowrap;}
+  .qb:hover,.qb.active{background:var(--gold);border-color:var(--gold);color:#fff;}
+  .run-btn{background:var(--gold);border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:12px;font-weight:700;height:34px;letter-spacing:.04em;padding:0 20px;text-transform:uppercase;white-space:nowrap;transition:opacity .15s;}
+  .run-btn:hover{opacity:.85;}
+  .chg-search-wrap{position:relative;margin-left:auto;}
+  .chg-search-wrap input{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;height:34px;padding:0 10px 0 30px;outline:none;width:200px;}
+  .chg-search-wrap input:focus{border-color:var(--gold);}
+
+  /* STATS */
+  .stats-bar{display:flex;background:var(--white);border-bottom:1px solid var(--border);}
+  .stat{flex:1;padding:12px 20px;border-right:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+  .stat:last-child{border-right:none;}
+  .stat-icon{font-size:20px;}
+  .stat-num{font-size:24px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;}
+  .stat-num.green{color:var(--green);}
+  .stat-num.red{color:var(--red);}
+  .stat-num.gold{color:var(--gold);}
+  .stat-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);}
+  .stat-sub{font-size:11px;color:var(--light);margin-top:1px;}
+
+  /* PANES */
+  .main{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px;min-height:calc(100vh - 54px - 92px - 58px);}
+  .pane{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden;}
+  .pane-header{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--white);}
+  .pane-title{font-size:13px;font-weight:700;color:var(--text);}
+  .pane-count{margin-left:auto;background:var(--bg);border:1px solid var(--border);border-radius:20px;font-size:11px;font-weight:700;padding:2px 10px;color:var(--muted);}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .dot.green{background:var(--green);}
+  .dot.red{background:var(--red);}
+
+  /* CARDS */
+  .watch-list{flex:1;overflow-y:auto;padding:10px;}
+  .watch-card{background:var(--white);border:1px solid var(--border);border-radius:7px;margin-bottom:8px;padding:12px 14px;transition:border-color .15s,box-shadow .15s;}
+  .watch-card:hover{border-color:var(--gold);box-shadow:0 2px 8px rgba(184,137,42,.1);}
+  .card-top{display:flex;align-items:flex-start;gap:10px;justify-content:space-between;}
+  .card-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.3;}
+  .card-price{font-size:14px;font-weight:800;color:var(--gold);white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .card-meta{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;}
+  .card-sku{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--muted);}
+  .card-cat{font-size:12px;color:var(--muted);}
+  .card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+  .badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:.03em;}
+  .badge-added{background:var(--green-bg);color:var(--green);border:1px solid var(--green-br);}
+  .badge-sold{background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);}
+  .card-link{color:var(--gold);font-size:11px;font-weight:700;text-decoration:none;}
+  .card-link:hover{text-decoration:underline;}
+
+  /* EMPTY */
+  .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);padding:40px 20px;text-align:center;gap:8px;}
+  .empty-icon{font-size:36px;opacity:.35;}
+  .empty-title{font-size:14px;font-weight:600;color:var(--muted);}
+  .empty-sub{font-size:12px;color:var(--light);max-width:260px;line-height:1.5;}
+
+  /* OVERLAY */
+  .overlay{position:fixed;inset:0;z-index:200;background:rgba(240,242,245,.96);display:flex;align-items:center;justify-content:center;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .load-box{background:var(--white);border:1px solid var(--border);border-radius:14px;box-shadow:0 12px 48px rgba(0,0,0,.12);padding:40px 48px;max-width:460px;width:90%;text-align:center;}
+  .load-box .icon{font-size:48px;margin-bottom:14px;}
+  .load-box h2{font-size:20px;font-weight:800;color:var(--text);margin-bottom:8px;}
+  .load-box p{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:24px;}
+  .upload-label{display:inline-block;background:var(--gold);border-radius:8px;color:#fff;cursor:pointer;font-size:14px;font-weight:700;padding:12px 32px;transition:opacity .15s;}
+  .upload-label:hover{opacity:.88;}
+  #file-input{display:none;}
+  .load-or{font-size:12px;color:var(--light);margin:14px 0 10px;}
+  .demo-btn{background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:13px;font-weight:600;padding:9px 24px;width:100%;transition:border-color .15s,color .15s;}
+  .demo-btn:hover{border-color:var(--gold);color:var(--gold);}
+  .load-hint{font-size:11px;color:var(--light);margin-top:18px;line-height:1.7;background:var(--bg);border-radius:6px;padding:10px 14px;text-align:left;}
+  .load-hint code{background:#fff;border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:11px;color:var(--gold);font-family:monospace;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1A1D23;color:#fff;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);opacity:0;pointer-events:none;transition:opacity .3s;z-index:300;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay">
+  <div class="load-box">
+    <div class="icon">⌚</div>
+    <h2>Watch Affinity Tracker</h2>
+    <div id="overlay-loading" style="text-align:center;">
+      <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:16px auto;"></div>
+      <p style="color:var(--muted);font-size:13px;">Loading latest inventory data…</p>
+    </div>
+    <div id="overlay-error" style="display:none;">
+      <p style="color:var(--red);font-size:13px;margin-bottom:16px;" id="overlay-error-msg"></p>
+      <label class="upload-label" for="file-input">📂 &nbsp;Load history.json manually</label>
+      <input type="file" id="file-input" accept=".json">
+      <div class="load-or">— or —</div>
+      <button class="demo-btn" id="demo-btn">Preview with sample data</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <span class="logo-name">Watch Affinity<span class="logo-tag">Inventory Tracker</span></span>
+  <button class="tab active" data-tab="inventory">📦 &nbsp;Current Inventory</button>
+  <button class="tab" data-tab="changes">🔄 &nbsp;Changes / Sold</button>
+  <button class="tab" data-tab="pricechanges">💲 &nbsp;Price Changes</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     TAB 1 — CURRENT INVENTORY
+════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="tab-inventory">
+  <div class="inv-toolbar">
+    <div class="inv-search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="inv-search" placeholder="Search name, SKU, brand…">
+    </div>
+    <div class="toolbar-filter-group">
+      <span class="toolbar-filter-label">Brand</span>
+      <select class="toolbar-filter-select" id="dd-brand"><option value="">All Brands</option></select>
+    </div>
+    <div class="toolbar-filter-group">
+      <span class="toolbar-filter-label">Price</span>
+      <select class="toolbar-filter-select" id="dd-price"><option value="">All Prices</option></select>
+    </div>
+    <div class="toolbar-filter-group">
+      <span class="toolbar-filter-label">Year</span>
+      <select class="toolbar-filter-select" id="dd-year"><option value="">All Years</option></select>
+    </div>
+    <div class="toolbar-filter-group">
+      <span class="toolbar-filter-label">Condition</span>
+      <select class="toolbar-filter-select" id="dd-condition"><option value="">All Conditions</option></select>
+    </div>
+    <span class="inv-count-badge" id="inv-count">— watches</span>
+    <button class="xlsx-btn" onclick="exportInventoryXlsx()">⬇ Export to Excel</button>
+  </div>
+  <div class="inv-table-wrap">
+    <table id="inv-table">
+      <thead>
+        <tr>
+          <th class="sortable" data-col="name">Watch</th>
+          <th class="sortable" data-col="referenceNumber">Reference</th>
+          <th class="sortable" data-col="sku">SKU</th>
+          <th class="sortable" data-col="condition">Condition</th>
+          <th class="sortable" data-col="price">Price</th>
+          <th class="sortable" data-col="year">Year</th>
+          <th class="sortable" data-col="caseSize">Size</th>
+          <th class="sortable" data-col="dialColor">Dial</th>
+          <th class="sortable" data-col="caseMaterial">Material</th>
+          <th></th>
+        </tr>
+        <tr class="filter-row">
+          <th><input class="col-filter" data-col="name"            placeholder="Filter…"></th>
+          <th><input class="col-filter" data-col="referenceNumber" placeholder="Filter…"></th>
+          <th><input class="col-filter" data-col="sku"             placeholder="Filter…"></th>
+          <th><select class="col-filter-select" id="cf-condition" data-col="condition"><option value="">All</option></select></th>
+          <th><input class="col-filter" data-col="price"           placeholder="Filter…"></th>
+          <th><input class="col-filter" data-col="year"            placeholder="Filter…"></th>
+          <th><input class="col-filter" data-col="caseSize"        placeholder="Filter…"></th>
+          <th><input class="col-filter" data-col="dialColor"       placeholder="Filter…"></th>
+          <th><input class="col-filter" data-col="caseMaterial"     placeholder="Filter…"></th>
+          <th><button id="clear-filters" title="Clear all filters" style="background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--muted);cursor:pointer;font-size:10px;height:26px;padding:0 8px;white-space:nowrap;">✕ Clear All</button></th>
+        </tr>
+      </thead>
+      <tbody id="inv-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     TAB 2 — CHANGES
+════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-changes">
+  <div class="picker-bar">
+    <div class="picker-group">
+      <div class="picker-label">From snapshot <span id="from-sub"></span></div>
+      <select id="sel-from"></select>
+    </div>
+    <div class="picker-group">
+      <div class="picker-label">To snapshot <span id="to-sub"></span></div>
+      <select id="sel-to"></select>
+    </div>
+    <div class="quick-wrap">
+      <div class="quick-label">Quick compare</div>
+      <div class="quick-btns">
+        <button class="qb" data-q="last2">Last 2 snapshots</button>
+        <button class="qb" data-q="today">Since midnight</button>
+        <button class="qb" data-q="2h">Last 2 hrs</button>
+        <button class="qb" data-q="24h">Last 24 hrs</button>
+        <button class="qb" data-q="7d">Last 7 days</button>
+        <button class="qb" data-q="all">All time</button>
+      </div>
+    </div>
+    <button class="run-btn" id="run-btn">Run Report</button>
+    <div class="chg-search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="chg-search" placeholder="Search name, SKU…">
+    </div>
+    <button class="xlsx-btn" onclick="exportChangesXlsx()">⬇ Export to Excel</button>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-icon">🟢</div><div><div class="stat-num green" id="stat-added">—</div><div class="stat-lbl">New / Back In Stock</div><div class="stat-sub" id="stat-added-sub">run a report</div></div></div>
+    <div class="stat"><div class="stat-icon">🔴</div><div><div class="stat-num red" id="stat-sold">—</div><div class="stat-lbl">Sold / Removed</div><div class="stat-sub" id="stat-sold-sub">run a report</div></div></div>
+    <div class="stat"><div class="stat-icon">📦</div><div><div class="stat-num gold" id="stat-total">—</div><div class="stat-lbl">In Stock Now</div><div class="stat-sub" id="stat-total-sub">as of "to" snapshot</div></div></div>
+    <div class="stat"><div class="stat-icon">📸</div><div><div class="stat-num gold" id="stat-snaps">—</div><div class="stat-lbl">Total Snapshots</div><div class="stat-sub" id="stat-snaps-sub">in history.json</div></div></div>
+  </div>
+
+  <div class="main">
+    <div class="pane">
+      <div class="pane-header"><div class="dot green"></div><span class="pane-title">New Arrivals / Back In Stock</span><span class="pane-count" id="count-added">—</span></div>
+      <div class="watch-list" id="list-added"><div class="empty-state"><div class="empty-icon">🟢</div><div class="empty-title">Waiting for data</div><div class="empty-sub">Load history.json then pick two snapshots</div></div></div>
+    </div>
+    <div class="pane">
+      <div class="pane-header"><div class="dot red"></div><span class="pane-title">Sold / Removed</span><span class="pane-count" id="count-sold">—</span></div>
+      <div class="watch-list" id="list-sold"><div class="empty-state"><div class="empty-icon">🔴</div><div class="empty-title">Waiting for data</div><div class="empty-sub">Load history.json then pick two snapshots</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     TAB 3 — PRICE CHANGES
+════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-pricechanges">
+  <div class="picker-bar">
+    <div class="picker-group">
+      <div class="picker-label">From snapshot <span id="pc-from-sub"></span></div>
+      <select id="pc-sel-from"></select>
+    </div>
+    <div class="picker-group">
+      <div class="picker-label">To snapshot <span id="pc-to-sub"></span></div>
+      <select id="pc-sel-to"></select>
+    </div>
+    <div class="quick-wrap">
+      <div class="quick-label">Quick compare</div>
+      <div class="quick-btns">
+        <button class="qb pc-qb" data-q="last2">Last 2 snapshots</button>
+        <button class="qb pc-qb" data-q="today">Since midnight</button>
+        <button class="qb pc-qb" data-q="2h">Last 2 hrs</button>
+        <button class="qb pc-qb" data-q="24h">Last 24 hrs</button>
+        <button class="qb pc-qb" data-q="7d">Last 7 days</button>
+        <button class="qb pc-qb" data-q="all">All time</button>
+      </div>
+    </div>
+    <button class="run-btn" id="pc-run-btn">Run Report</button>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-icon">📈</div><div><div class="stat-num green" id="pc-stat-up">—</div><div class="stat-lbl">Price Increases</div><div class="stat-sub" id="pc-stat-up-sub">run a report</div></div></div>
+    <div class="stat"><div class="stat-icon">📉</div><div><div class="stat-num red" id="pc-stat-down">—</div><div class="stat-lbl">Price Decreases</div><div class="stat-sub" id="pc-stat-down-sub">run a report</div></div></div>
+    <div class="stat"><div class="stat-icon">💲</div><div><div class="stat-num gold" id="pc-stat-avg">—</div><div class="stat-lbl">Avg Change</div><div class="stat-sub" id="pc-stat-avg-sub">across changed watches</div></div></div>
+    <div class="stat"><div class="stat-icon">📦</div><div><div class="stat-num gold" id="pc-stat-total">—</div><div class="stat-lbl">Watches Compared</div><div class="stat-sub" id="pc-stat-total-sub">in both snapshots</div></div></div>
+  </div>
+
+  <div class="inv-toolbar">
+    <div class="inv-search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="pc-search" placeholder="Search name, SKU, reference…">
+    </div>
+    <div class="toolbar-filter-group">
+      <span class="toolbar-filter-label">Direction</span>
+      <select class="toolbar-filter-select" id="pc-dd-direction">
+        <option value="">All Changes</option>
+        <option value="up">Price Increases</option>
+        <option value="down">Price Decreases</option>
+      </select>
+    </div>
+    <div class="toolbar-filter-group">
+      <span class="toolbar-filter-label">Brand</span>
+      <select class="toolbar-filter-select" id="pc-dd-brand"><option value="">All Brands</option></select>
+    </div>
+    <span class="inv-count-badge" id="pc-count">— changes</span>
+    <button class="xlsx-btn" onclick="exportPriceChangesXlsx()">⬇ Export to Excel</button>
+  </div>
+
+  <div class="inv-table-wrap">
+    <table id="pc-table">
+      <thead>
+        <tr>
+          <th class="sortable" data-col="name">Watch</th>
+          <th class="sortable" data-col="referenceNumber">Reference</th>
+          <th class="sortable" data-col="sku">SKU</th>
+          <th class="sortable" data-col="oldPrice">Old Price</th>
+          <th class="sortable" data-col="newPrice">New Price</th>
+          <th class="sortable" data-col="changeAmt">Change ($)</th>
+          <th class="sortable" data-col="changePct">Change (%)</th>
+          <th class="sortable" data-col="brand">Brand</th>
+          <th></th>
+        </tr>
+        <tr class="filter-row">
+          <th><input class="col-filter" data-col="name" placeholder="Filter…"></th>
+          <th><input class="col-filter" data-col="referenceNumber" placeholder="Filter…"></th>
+          <th><input class="col-filter" data-col="sku" placeholder="Filter…"></th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th><select class="col-filter-select" id="pc-cf-brand" data-col="brand"><option value="">All</option></select></th>
+          <th><button id="pc-clear-filters" title="Clear all filters" style="background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--muted);cursor:pointer;font-size:10px;height:26px;padding:0 8px;white-space:nowrap;">✕ Clear All</button></th>
+        </tr>
+      </thead>
+      <tbody id="pc-table-body">
+        <tr><td colspan="9" style="padding:40px;text-align:center;color:var(--muted);">Pick two snapshots and click Run Report to see price changes.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ── state ────────────────────────────────────────────────────────────────────
+let HISTORY = null;
+let KEYS    = [];
+let LATEST_SNAP = {};
+let filtered = [];
+let lastAdded = [], lastSold = [];
+
+// ── tab switching ─────────────────────────────────────────────────────────────
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+// ── Auto-load history.json from same folder ─────────────────────────────────
+async function autoLoadHistory() {
+  try {
+    const res = await fetch("./history.json?t=" + Date.now());
+    if (!res.ok) throw new Error(`history.json not found (${res.status})`);
+    HISTORY = await res.json();
+    init();
+  } catch (e) {
+    document.getElementById("overlay-loading").style.display = "none";
+    document.getElementById("overlay-error").style.display   = "block";
+    document.getElementById("overlay-error-msg").textContent =
+      "Could not auto-load: " + e.message + ". Use manual load below.";
+  }
+}
+
+// Manual file load fallback
+document.getElementById("file-input").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try { HISTORY = JSON.parse(ev.target.result); init(); }
+    catch { alert("Could not read that file — make sure it's the history.json from watch-affinity-tracker."); }
+  };
+  reader.readAsText(file);
+});
+document.getElementById("demo-btn").addEventListener("click", () => { HISTORY = buildDemo(); init(); });
+
+// Start auto-load
+autoLoadHistory();
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 3000);
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+function init() {
+  document.getElementById("overlay").style.display = "none";
+  KEYS = Object.keys(HISTORY).sort();
+  LATEST_SNAP = HISTORY[KEYS[KEYS.length - 1]] || {};
+
+  // Stats
+  document.getElementById("stat-snaps").textContent    = KEYS.length;
+  document.getElementById("stat-snaps-sub").textContent = KEYS.length > 1
+    ? KEYS[0] + " → " + KEYS[KEYS.length-1] : KEYS[0] || "—";
+
+  // Inventory tab
+  renderInventory(Object.values(LATEST_SNAP));
+
+  // Changes tab selects
+  populateSelects();
+  setFromTo(KEYS[0], KEYS[KEYS.length-1]);
+  runReport();
+
+  // Price Changes tab selects
+  pcPopulateSelects();
+  pcSetFromTo(KEYS[0], KEYS[KEYS.length-1]);
+  pcRunReport();
+
+  toast("✓ Loaded " + KEYS.length + " snapshot" + (KEYS.length > 1 ? "s" : "") + " · " + Object.keys(LATEST_SNAP).length + " in-stock watches");
+}
+
+// ── INVENTORY TAB ─────────────────────────────────────────────────────────────
+let sortCol = "name", sortDir = "asc";
+let colFilters  = {};
+let ddFilters   = {};
+
+function renderInventory(products) {
+  colFilters = {}; ddFilters = {};
+  sortCol = "name"; sortDir = "asc";
+  populateDropdowns(products);
+  applyFiltersAndSort(products);
+}
+
+function populateDropdowns(products) {
+  function unique(field) {
+    return [...new Set(products.map(p => (p[field] || "").trim()).filter(Boolean))].sort();
+  }
+
+  const brands = unique("brand");
+  const conditions = unique("condition");
+  const years = [...new Set(products.map(p => (p.year||"").trim()).filter(Boolean))].sort((a,b) => b.localeCompare(a));
+
+  const prices = products.map(p => parsePrice(p.price)).filter(n => n > 0);
+  const priceRanges = [
+    { label: "Under $5,000",         min: 0,      max: 4999 },
+    { label: "$5,000 – $10,000",     min: 5000,   max: 10000 },
+    { label: "$10,000 – $25,000",    min: 10001,  max: 25000 },
+    { label: "$25,000 – $50,000",    min: 25001,  max: 50000 },
+    { label: "$50,000 – $100,000",   min: 50001,  max: 100000 },
+    { label: "Over $100,000",        min: 100001, max: Infinity },
+  ].filter(r => prices.some(p => p >= r.min && p <= r.max));
+
+  fillSelect("dd-brand",     brands,     "All Brands");
+  fillSelect("dd-year",      years,      "All Years");
+  fillSelect("dd-condition", conditions, "All Conditions");
+  fillSelect("cf-condition", conditions, "All");
+  fillSelectOptions("dd-price", priceRanges.map(r => ({ value: `${r.min}|${r.max}`, label: r.label })), "All Prices");
+}
+
+function fillSelect(id, values, placeholder) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `<option value="">${placeholder}</option>` +
+    values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+}
+
+function fillSelectOptions(id, options, placeholder) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `<option value="">${placeholder}</option>` +
+    options.map(o => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join("");
+}
+
+function esc(s = "") { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function parsePrice(p) {
+  return parseFloat((p || "0").replace(/[^0-9.]/g, "")) || 0;
+}
+
+// ── EXCEL EXPORT ─────────────────────────────────────────────────────────────
+function downloadCsv(rows, filename) {
+  const csv = rows.map(row =>
+    row.map(cell => {
+      const s = String(cell === null || cell === undefined ? "" : cell);
+      if (s.includes('"') || s.includes(',') || s.includes('\n') || s.includes('\r')) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    }).join(",")
+  ).join("\n");
+
+  const bom  = "﻿";
+  const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportInventoryXlsx() {
+  const timestamp = new Date().toISOString().slice(0, 10);
+  const headers = ["Watch Name","Reference","SKU","Brand","Model","Condition","Price","Year","Case Size","Dial Color","Case Material","Movement","Bracelet","Box","Papers","Warranty Card","URL"];
+  const rows = [headers, ...filtered.map(w => [
+    w.name, w.referenceNumber||"", w.sku||"",
+    w.brand||"", w.model||"", w.condition||"",
+    w.price||"", w.year||"", w.caseSize||"",
+    w.dialColor||"", w.caseMaterial||"", w.movement||"",
+    w.bracelet||"", w.box||"", w.papers||"",
+    w.warrantyCard||"", w.url||""
+  ])];
+  downloadCsv(rows, `watch-affinity-inventory-${timestamp}.csv`);
+  toast(`✓ Exported ${filtered.length} watch${filtered.length!==1?"es":""} to Excel`);
+}
+
+function exportChangesXlsx() {
+  const timestamp = new Date().toISOString().slice(0, 10);
+  const q = document.getElementById("chg-search").value.trim().toLowerCase();
+  const fa = q ? lastAdded.filter(w => hits(w,q)) : lastAdded;
+  const fs = q ? lastSold.filter(w  => hits(w,q)) : lastSold;
+
+  const headers = ["Type","Watch Name","Reference","SKU","Price","Brand","Condition","URL"];
+  const addedRows = fa.map(w => ["New Arrival", w.name, w.referenceNumber||"", w.sku||"", w.price||"", w.brand||"", w.condition||"", w.url||""]);
+  const soldRows  = fs.map(w => ["Sold / Removed", w.name, w.referenceNumber||"", w.sku||"", w.price||"", w.brand||"", w.condition||"", w.url||""]);
+
+  const rows = [headers, ...addedRows, ...soldRows];
+  downloadCsv(rows, `watch-affinity-changes-${timestamp}.csv`);
+  toast(`✓ Exported ${fa.length} new + ${fs.length} sold to Excel`);
+}
+
+function exportPriceChangesXlsx() {
+  const timestamp = new Date().toISOString().slice(0, 10);
+  const headers = ["Watch Name","Reference","SKU","Brand","Old Price","New Price","Change ($)","Change (%)","Direction","URL"];
+  const rows = [headers, ...pcFiltered.map(c => [
+    c.name, c.referenceNumber||"", c.sku||"", c.brand||"",
+    c.oldPriceStr||"", c.newPriceStr||"",
+    (c.changeAmt >= 0 ? "+" : "") + Math.round(c.changeAmt),
+    (c.changePct >= 0 ? "+" : "") + c.changePct.toFixed(1) + "%",
+    c.direction === "up" ? "Price Increase" : "Price Decrease",
+    c.url||""
+  ])];
+  downloadCsv(rows, `watch-affinity-price-changes-${timestamp}.csv`);
+  toast(`✓ Exported ${pcFiltered.length} price change${pcFiltered.length!==1?"s":""} to Excel`);
+}
+
+// ── PRICE CHANGES TAB ────────────────────────────────────────────────────────
+let pcSortCol = "changePct", pcSortDir = "desc";
+let pcColFilters = {};
+let pcDdFilters  = {};
+let pcAllChanges = [];
+let pcFiltered   = [];
+
+function pcPopulateSelects() {
+  const fromSel = document.getElementById("pc-sel-from");
+  const toSel   = document.getElementById("pc-sel-to");
+  fromSel.innerHTML = toSel.innerHTML = "";
+  KEYS.forEach(k => {
+    const label = fmtKey(k);
+    fromSel.insertAdjacentHTML("beforeend", `<option value="${k}">${label}</option>`);
+    toSel.insertAdjacentHTML("beforeend",   `<option value="${k}">${label}</option>`);
+  });
+  fromSel.value = KEYS[0];
+  toSel.value   = KEYS[KEYS.length-1];
+  pcUpdateSubLabels();
+}
+
+function pcSetFromTo(from, to) {
+  document.getElementById("pc-sel-from").value = from;
+  document.getElementById("pc-sel-to").value   = to;
+  pcUpdateSubLabels();
+}
+
+function pcUpdateSubLabels() {
+  const snap = k => HISTORY[k] ? Object.keys(HISTORY[k]).length + " watches" : "";
+  document.getElementById("pc-from-sub").textContent = snap(document.getElementById("pc-sel-from").value);
+  document.getElementById("pc-to-sub").textContent   = snap(document.getElementById("pc-sel-to").value);
+}
+
+document.getElementById("pc-sel-from").addEventListener("change", pcUpdateSubLabels);
+document.getElementById("pc-sel-to").addEventListener("change", pcUpdateSubLabels);
+
+document.querySelectorAll(".pc-qb").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (!HISTORY) return;
+    document.querySelectorAll(".pc-qb").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const q = btn.dataset.q, last = KEYS[KEYS.length-1];
+    let from = KEYS[0];
+    if      (q === "last2") from = KEYS[Math.max(0, KEYS.length-2)];
+    else if (q === "today") { const p = last.slice(0,10); from = KEYS.find(k => k.startsWith(p)) || last; }
+    else if (q === "2h")    from = keyMinusMins(last, 120);
+    else if (q === "24h")   from = keyMinusMins(last, 1440);
+    else if (q === "7d")    from = keyMinusMins(last, 10080);
+    pcSetFromTo(from, last);
+    pcRunReport();
+  });
+});
+
+document.getElementById("pc-run-btn").addEventListener("click", pcRunReport);
+
+function pcRunReport() {
+  if (!HISTORY) return;
+  const fromKey = document.getElementById("pc-sel-from").value;
+  const toKey   = document.getElementById("pc-sel-to").value;
+  const fromSnap = HISTORY[fromKey] || {};
+  const toSnap   = HISTORY[toKey]   || {};
+
+  const changes = [];
+  Object.keys(fromSnap).forEach(id => {
+    const oldW = fromSnap[id];
+    const newW = toSnap[id];
+    if (!newW) return;
+    const oldPrice = parsePrice(oldW.price);
+    const newPrice = parsePrice(newW.price);
+    if (oldPrice === 0 || newPrice === 0 || oldPrice === newPrice) return;
+    const changeAmt = newPrice - oldPrice;
+    const changePct = (changeAmt / oldPrice) * 100;
+    changes.push({
+      id, name: newW.name, referenceNumber: newW.referenceNumber, sku: newW.sku,
+      brand: newW.brand || newW.categories, url: newW.url,
+      oldPriceStr: oldW.price, newPriceStr: newW.price,
+      oldPrice, newPrice, changeAmt, changePct,
+      direction: changeAmt > 0 ? "up" : "down",
+    });
+  });
+
+  pcAllChanges = changes;
+
+  const brands = [...new Set(changes.map(c => (c.brand||"").trim()).filter(Boolean))].sort();
+  const brandSel = document.getElementById("pc-dd-brand");
+  brandSel.innerHTML = `<option value="">All Brands</option>` + brands.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join("");
+  document.getElementById("pc-cf-brand").innerHTML = `<option value="">All</option>` + brands.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join("");
+
+  const up   = changes.filter(c => c.direction === "up");
+  const down = changes.filter(c => c.direction === "down");
+  const avgChange = changes.length ? (changes.reduce((a,c)=>a+c.changeAmt,0) / changes.length) : 0;
+
+  document.getElementById("pc-stat-up").textContent      = up.length;
+  document.getElementById("pc-stat-up-sub").textContent  = "between selected snapshots";
+  document.getElementById("pc-stat-down").textContent    = down.length;
+  document.getElementById("pc-stat-down-sub").textContent= "between selected snapshots";
+  document.getElementById("pc-stat-avg").textContent     = (avgChange>=0?"+$":"-$") + Math.abs(Math.round(avgChange)).toLocaleString();
+  document.getElementById("pc-stat-avg-sub").textContent = changes.length + " watches changed";
+  document.getElementById("pc-stat-total").textContent   = Object.keys(toSnap).length;
+  document.getElementById("pc-stat-total-sub").textContent = "as of " + fmtKey(toKey);
+
+  pcApplyFiltersAndSort();
+}
+
+function pcApplyFiltersAndSort() {
+  let all = pcAllChanges.slice();
+
+  const dir = document.getElementById("pc-dd-direction").value;
+  if (dir) all = all.filter(c => c.direction === dir);
+
+  const brand = document.getElementById("pc-dd-brand").value;
+  if (brand) all = all.filter(c => (c.brand||"") === brand);
+
+  const cfBrand = document.getElementById("pc-cf-brand").value;
+  if (cfBrand) all = all.filter(c => (c.brand||"") === cfBrand);
+
+  all = all.filter(c => Object.entries(pcColFilters).every(([col,q]) => {
+    if (!q) return true;
+    return String(c[col]||"").toLowerCase().includes(q.toLowerCase());
+  }));
+
+  const q = document.getElementById("pc-search").value.trim().toLowerCase();
+  if (q) all = all.filter(c =>
+    [c.name, c.referenceNumber, c.sku, c.brand].join(" ").toLowerCase().includes(q)
+  );
+
+  all.sort((a,b) => {
+    let av = a[pcSortCol], bv = b[pcSortCol];
+    if (typeof av === "number" || typeof bv === "number") {
+      av = Number(av)||0; bv = Number(bv)||0;
+      return pcSortDir === "asc" ? av-bv : bv-av;
+    }
+    av = String(av||"").toLowerCase(); bv = String(bv||"").toLowerCase();
+    if (av < bv) return pcSortDir === "asc" ? -1 : 1;
+    if (av > bv) return pcSortDir === "asc" ?  1 : -1;
+    return 0;
+  });
+
+  pcFiltered = all;
+  document.getElementById("pc-count").textContent = all.length + " changes";
+  pcRefreshTable();
+  pcUpdateSortHeaders();
+}
+
+function pcUpdateSortHeaders() {
+  document.querySelectorAll("#pc-table thead th.sortable").forEach(th => {
+    th.classList.remove("sort-asc","sort-desc");
+    if (th.dataset.col === pcSortCol) th.classList.add(pcSortDir === "asc" ? "sort-asc" : "sort-desc");
+  });
+}
+
+function pcRefreshTable() {
+  const tbody = document.getElementById("pc-table-body");
+  if (!pcFiltered.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--muted);">No price changes match the current filters.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = pcFiltered.map(c => {
+    const up = c.direction === "up";
+    const arrow = up ? "▲" : "▼";
+    const color = up ? "var(--red)" : "var(--green)";
+    const sign  = c.changeAmt >= 0 ? "+" : "−";
+    return `<tr>
+      <td><div class="td-name">${x(c.name)}</div></td>
+      <td>${c.referenceNumber ? `<span class="td-ref">${x(c.referenceNumber)}</span>` : `<span class="td-ref-empty">—</span>`}</td>
+      <td><span class="td-sku">${x(c.sku || "—")}</span></td>
+      <td class="td-price">${x(c.oldPriceStr)}</td>
+      <td class="td-price">${x(c.newPriceStr)}</td>
+      <td style="color:${color};font-weight:800;">${arrow} ${sign}$${Math.abs(Math.round(c.changeAmt)).toLocaleString()}</td>
+      <td style="color:${color};font-weight:800;">${arrow} ${sign}${Math.abs(c.changePct).toFixed(1)}%</td>
+      <td class="td-cat">${x(c.brand)}</td>
+      <td class="td-link">${c.url?`<a href="${c.url}" target="_blank">View →</a>`:""}</td>
+    </tr>`;
+  }).join("");
+}
+
+// Sort headers (price changes)
+document.querySelectorAll("#pc-table thead th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.col;
+    if (pcSortCol === col) pcSortDir = pcSortDir === "asc" ? "desc" : "asc";
+    else { pcSortCol = col; pcSortDir = "desc"; }
+    pcApplyFiltersAndSort();
+  });
+});
+
+document.querySelectorAll("#pc-table .col-filter").forEach(input => {
+  input.addEventListener("input", () => {
+    pcColFilters[input.dataset.col] = input.value.trim();
+    input.closest("th")?.classList.toggle("filter-active", !!input.value.trim());
+    pcApplyFiltersAndSort();
+  });
+  input.addEventListener("click", e => e.stopPropagation());
+});
+
+["pc-dd-direction","pc-dd-brand","pc-cf-brand"].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("change", () => {
+    el.classList.toggle("active", !!el.value);
+    el.closest("th")?.classList.toggle("filter-active", !!el.value);
+    pcApplyFiltersAndSort();
+  });
+});
+
+document.getElementById("pc-search").addEventListener("input", pcApplyFiltersAndSort);
+
+document.getElementById("pc-clear-filters").addEventListener("click", () => {
+  pcColFilters = {};
+  document.querySelectorAll("#pc-table .col-filter").forEach(i => { i.value=""; i.closest("th")?.classList.remove("filter-active"); });
+  ["pc-dd-direction","pc-dd-brand","pc-cf-brand"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value=""; el.classList.remove("active"); el.closest("th")?.classList.remove("filter-active"); }
+  });
+  document.getElementById("pc-search").value = "";
+  pcApplyFiltersAndSort();
+});
+
+// ── Filter + sort (Inventory) ────────────────────────────────────────────────
+function applyFiltersAndSort(source) {
+  let all = source || Object.values(LATEST_SNAP);
+
+  // Brand dropdown
+  const ddBrand = ddFilters["brand"] || "";
+  if (ddBrand) all = all.filter(w => (w.brand || "").toLowerCase() === ddBrand.toLowerCase());
+
+  // Price range dropdown
+  const ddPrice = ddFilters["price"] || "";
+  if (ddPrice) {
+    const [min, max] = ddPrice.split("|").map(Number);
+    all = all.filter(w => {
+      const p = parsePrice(w.price);
+      return p >= min && p <= max;
+    });
+  }
+
+  // Year dropdown
+  const ddYear = ddFilters["year"] || "";
+  if (ddYear) all = all.filter(w => (w.year || "") === ddYear);
+
+  // Condition dropdown
+  const ddCond = ddFilters["condition"] || "";
+  if (ddCond) all = all.filter(w => (w.condition || "").toLowerCase() === ddCond.toLowerCase());
+
+  // Column text filters
+  all = all.filter(w =>
+    Object.entries(colFilters).every(([col, q]) => {
+      if (!q) return true;
+      return String(w[col] || "").toLowerCase().includes(q.toLowerCase());
+    })
+  );
+
+  // Column dropdown filters
+  const cfCond = ddFilters["cf-condition"] || "";
+  if (cfCond) all = all.filter(w => (w.condition || "") === cfCond);
+
+  // Global search bar
+  const globalQ = document.getElementById("inv-search").value.trim().toLowerCase();
+  if (globalQ) {
+    all = all.filter(w =>
+      [w.name, w.sku, w.referenceNumber, w.brand, w.model,
+       w.price, w.condition, w.caseSize, w.dialColor, w.caseMaterial]
+        .join(" ").toLowerCase().includes(globalQ)
+    );
+  }
+
+  filtered = all;
+
+  // Sort
+  filtered.sort((a, b) => {
+    if (sortCol === "price") {
+      const av = parsePrice(a.price);
+      const bv = parsePrice(b.price);
+      return sortDir === "asc" ? av - bv : bv - av;
+    }
+    const av = String(a[sortCol] || "").toLowerCase();
+    const bv = String(b[sortCol] || "").toLowerCase();
+    if (av < bv) return sortDir === "asc" ? -1 : 1;
+    if (av > bv) return sortDir === "asc" ?  1 : -1;
+    return 0;
+  });
+
+  document.getElementById("inv-count").textContent = filtered.length + " watches";
+  refreshTable();
+  updateSortHeaders();
+}
+
+function updateSortHeaders() {
+  document.querySelectorAll("#inv-table thead th.sortable").forEach(th => {
+    th.classList.remove("sort-asc", "sort-desc");
+    if (th.dataset.col === sortCol)
+      th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+  });
+}
+
+function refreshTable() {
+  const tbody = document.getElementById("inv-body");
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="10" style="padding:40px;text-align:center;color:var(--muted);">No watches match the current filters.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(w => {
+    return `<tr>
+      <td><div class="td-name">${x(w.name)}</div></td>
+      <td>${w.referenceNumber ? `<span class="td-ref">${x(w.referenceNumber)}</span>` : `<span class="td-ref-empty">—</span>`}</td>
+      <td><span class="td-sku">${x(w.sku || "—")}</span></td>
+      <td style="font-size:12px;color:var(--text);font-weight:600;">${x(w.condition || "—")}</td>
+      <td class="td-price">${x(w.price)}</td>
+      <td style="font-size:13px;color:var(--text);font-weight:600;">${x(w.year || "—")}</td>
+      <td style="font-size:12px;color:var(--muted);">${x(w.caseSize || "—")}</td>
+      <td style="font-size:12px;color:var(--muted);">${x(w.dialColor || "—")}</td>
+      <td style="font-size:12px;color:var(--muted);">${x(w.caseMaterial || "—")}</td>
+      <td class="td-link"><a href="${w.url}" target="_blank">View →</a></td>
+    </tr>`;
+  }).join("");
+}
+
+// ── Wire up filter controls ──────────────────────────────────────────────────
+["dd-brand", "dd-price", "dd-year", "dd-condition"].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("change", () => {
+    const key = id.replace("dd-", "");
+    ddFilters[key] = el.value;
+    el.classList.toggle("active", !!el.value);
+    applyFiltersAndSort();
+  });
+});
+
+// Column header sort
+document.querySelectorAll("#inv-table thead th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortDir = sortDir === "asc" ? "desc" : "asc";
+    else { sortCol = col; sortDir = "asc"; }
+    applyFiltersAndSort();
+  });
+});
+
+// Column text filters
+document.querySelectorAll("#inv-table .col-filter").forEach(input => {
+  input.addEventListener("input", () => {
+    colFilters[input.dataset.col] = input.value.trim();
+    input.closest("th")?.classList.toggle("filter-active", !!input.value.trim());
+    applyFiltersAndSort();
+  });
+  input.addEventListener("click", e => e.stopPropagation());
+});
+
+// Column dropdown filters
+["cf-condition"].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("change", () => {
+    ddFilters[id] = el.value;
+    el.closest("th")?.classList.toggle("filter-active", !!el.value);
+    applyFiltersAndSort();
+  });
+  el.addEventListener("click", e => e.stopPropagation());
+});
+
+// Clear ALL filters
+document.getElementById("clear-filters").addEventListener("click", () => {
+  colFilters = {}; ddFilters = {};
+  document.querySelectorAll("#inv-table .col-filter").forEach(i => {
+    i.value = "";
+    i.closest("th")?.classList.remove("filter-active");
+  });
+  ["cf-condition"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ""; el.closest("th")?.classList.remove("filter-active"); }
+  });
+  ["dd-brand","dd-price","dd-year","dd-condition"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ""; el.classList.remove("active"); }
+  });
+  document.getElementById("inv-search").value = "";
+  applyFiltersAndSort();
+});
+
+// Global search
+document.getElementById("inv-search").addEventListener("input", () => applyFiltersAndSort());
+
+// ── CHANGES TAB ──────────────────────────────────────────────────────────────
+function populateSelects() {
+  const fromSel = document.getElementById("sel-from");
+  const toSel   = document.getElementById("sel-to");
+  fromSel.innerHTML = toSel.innerHTML = "";
+  KEYS.forEach(k => {
+    const label = fmtKey(k);
+    fromSel.insertAdjacentHTML("beforeend", `<option value="${k}">${label}</option>`);
+    toSel.insertAdjacentHTML("beforeend",   `<option value="${k}">${label}</option>`);
+  });
+  fromSel.value = KEYS[0];
+  toSel.value   = KEYS[KEYS.length-1];
+  updateSubLabels();
+}
+
+function setFromTo(from, to) {
+  document.getElementById("sel-from").value = from;
+  document.getElementById("sel-to").value   = to;
+  updateSubLabels();
+}
+
+function updateSubLabels() {
+  const snap = k => HISTORY[k] ? Object.keys(HISTORY[k]).length + " watches" : "";
+  document.getElementById("from-sub").textContent = snap(document.getElementById("sel-from").value);
+  document.getElementById("to-sub").textContent   = snap(document.getElementById("sel-to").value);
+}
+
+document.getElementById("sel-from").addEventListener("change", updateSubLabels);
+document.getElementById("sel-to").addEventListener("change", updateSubLabels);
+
+document.querySelectorAll(".qb:not(.pc-qb)").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (!HISTORY) return;
+    document.querySelectorAll(".qb:not(.pc-qb)").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const q = btn.dataset.q, last = KEYS[KEYS.length-1];
+    let from = KEYS[0];
+    if      (q === "last2") from = KEYS[Math.max(0, KEYS.length-2)];
+    else if (q === "today") { const p = last.slice(0,10); from = KEYS.find(k => k.startsWith(p)) || last; }
+    else if (q === "2h")    from = keyMinusMins(last, 120);
+    else if (q === "24h")   from = keyMinusMins(last, 1440);
+    else if (q === "7d")    from = keyMinusMins(last, 10080);
+    setFromTo(from, last);
+    runReport();
+  });
+});
+
+function keyMinusMins(lastKey, mins) {
+  const target = keyToMs(lastKey) - mins * 60000;
+  for (const k of KEYS) if (keyToMs(k) >= target) return k;
+  return KEYS[0];
+}
+function keyToMs(k) { return new Date(k.replace(" ","T")+":00").getTime(); }
+
+document.getElementById("run-btn").addEventListener("click", runReport);
+document.getElementById("chg-search").addEventListener("input", applySearch);
+
+function runReport() {
+  if (!HISTORY) return;
+  const fromKey = document.getElementById("sel-from").value;
+  const toKey   = document.getElementById("sel-to").value;
+  const fromSnap = HISTORY[fromKey] || {};
+  const toSnap   = HISTORY[toKey]   || {};
+  const fromIds  = new Set(Object.keys(fromSnap));
+  const toIds    = new Set(Object.keys(toSnap));
+
+  // New/Back In Stock: in toSnap but not in fromSnap
+  lastAdded = [...toIds]
+    .filter(id => !fromIds.has(id))
+    .map(id => toSnap[id]);
+
+  // Sold/Removed: in fromSnap but not in toSnap
+  lastSold = [...fromIds]
+    .filter(id => !toIds.has(id))
+    .map(id => fromSnap[id]);
+
+  document.getElementById("stat-added").textContent    = lastAdded.length;
+  document.getElementById("stat-added-sub").textContent = "between selected snapshots";
+  document.getElementById("stat-sold").textContent     = lastSold.length;
+  document.getElementById("stat-sold-sub").textContent  = "between selected snapshots";
+  document.getElementById("stat-total").textContent    = Object.keys(toSnap).length;
+  document.getElementById("stat-total-sub").textContent = "as of " + fmtKey(toKey);
+  applySearch();
+}
+
+function applySearch() {
+  const q  = document.getElementById("chg-search").value.trim().toLowerCase();
+  const fa = q ? lastAdded.filter(w => hits(w,q)) : lastAdded;
+  const fs = q ? lastSold.filter(w  => hits(w,q)) : lastSold;
+  renderList("list-added", fa, "added");
+  renderList("list-sold",  fs, "sold");
+  document.getElementById("count-added").textContent = fa.length;
+  document.getElementById("count-sold").textContent  = fs.length;
+}
+
+function hits(w, q) { return [w.name,w.sku,w.referenceNumber,w.brand,w.price].join(" ").toLowerCase().includes(q); }
+
+function renderList(id, watches, type) {
+  const el = document.getElementById(id);
+  if (!watches.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">${type==="added"?"🟢":"🔴"}</div><div class="empty-title">No ${type==="added"?"new arrivals":"sold watches"}</div><div class="empty-sub">No changes between these two snapshots.</div></div>`;
+    return;
+  }
+  el.innerHTML = watches.map(w => card(w, type)).join("");
+}
+
+function card(w, type) {
+  const isAdded = type === "added";
+  const badge = isAdded ? `<span class="badge badge-added">✓ In Stock</span>` : `<span class="badge badge-sold">● Sold / Removed</span>`;
+  const link  = isAdded ? `<a class="card-link" href="${w.url}" target="_blank">View listing →</a>` : "";
+  return `<div class="watch-card">
+    <div class="card-top"><div class="card-name">${x(w.name)}</div><div class="card-price">${x(w.price)}</div></div>
+    <div class="card-meta">${w.sku?`<span class="card-sku">${x(w.sku)}</span>`:""}${w.brand?`<span class="card-cat">${x(w.brand)}</span>`:""}</div>
+    <div class="card-footer">${badge}${link}</div>
+  </div>`;
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+function fmtKey(k) {
+  if (!k) return "—";
+  const [dp, tp] = k.split(" ");
+  const [y,m,d]  = dp.split("-").map(Number);
+  const [hh,mm]  = tp.split(":").map(Number);
+  const months   = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const ampm = hh>=12?"PM":"AM", h12 = hh%12||12;
+  return `${months[m-1]} ${d}  ·  ${h12}:${String(mm).padStart(2,"0")} ${ampm}`;
+}
+function x(s="") { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+// ── demo data ────────────────────────────────────────────────────────────────
+function buildDemo() {
+  const watches = [
+    {id:"d1",sku:"GQ56",referenceNumber:"126500LN-0002",name:"Rolex Cosmograph Daytona Oystersteel Black Dial 40mm",brand:"Rolex",model:"Cosmograph Daytona",price:"$31,499",condition:"Unworn",year:"2025",caseSize:"40mm",dialColor:"Black",caseMaterial:"Oystersteel",movement:"Automatic",url:"https://www.watch-affinity.com/watches",inStock:true},
+    {id:"d2",sku:"GQ55",referenceNumber:"126610LN",name:"Rolex Submariner Date Black Dial 41mm",brand:"Rolex",model:"Submariner Date",price:"$14,200",condition:"Unworn",year:"2024",caseSize:"41mm",dialColor:"Black",caseMaterial:"Oystersteel",movement:"Automatic",url:"https://www.watch-affinity.com/watches",inStock:true},
+    {id:"d3",sku:"GQ54",referenceNumber:"5711/1A-010",name:"Patek Philippe Nautilus Blue Dial 40mm",brand:"Patek Philippe",model:"Nautilus",price:"$165,000",condition:"Pre-Owned",year:"2023",caseSize:"40mm",dialColor:"Blue",caseMaterial:"Steel",movement:"Automatic",url:"https://www.watch-affinity.com/watches",inStock:true},
+    {id:"d4",sku:"GQ53",referenceNumber:"15500ST.OO.1220ST.01",name:"Audemars Piguet Royal Oak Blue Dial 41mm",brand:"Audemars Piguet",model:"Royal Oak",price:"$52,500",condition:"Pre-Owned",year:"2022",caseSize:"41mm",dialColor:"Blue",caseMaterial:"Stainless Steel",movement:"Automatic",url:"https://www.watch-affinity.com/watches",inStock:true},
+    {id:"d5",sku:"GQ52",referenceNumber:"326934",name:"Rolex Sky-Dweller Blue Dial Oyster 42mm",brand:"Rolex",model:"Sky-Dweller",price:"$22,000",condition:"Unworn",year:"2025",caseSize:"42mm",dialColor:"Blue",caseMaterial:"Oystersteel",movement:"Automatic",url:"https://www.watch-affinity.com/watches",inStock:true},
+    {id:"d6",sku:"GQ51",referenceNumber:"126710BLRO",name:"Rolex GMT-Master II Pepsi Jubilee 40mm",brand:"Rolex",model:"GMT-Master II",price:"$18,500",condition:"Pre-Owned",year:"2023",caseSize:"40mm",dialColor:"Black",caseMaterial:"Oystersteel",movement:"Automatic",url:"https://www.watch-affinity.com/watches",inStock:true},
+  ];
+  const history = {};
+  const base = new Date(); base.setHours(8,0,0,0);
+  const scenarios = [
+    {offsetMins:0,   present:["d1","d2","d3","d4","d5"]},
+    {offsetMins:180, present:["d1","d2","d3","d5"]},
+    {offsetMins:360, present:["d1","d2","d3","d5","d6"]},
+    {offsetMins:540, present:["d1","d2","d5","d6"]},
+  ];
+  scenarios.forEach(s => {
+    const d = new Date(base.getTime() + s.offsetMins*60000);
+    const key = d.toLocaleString("sv-SE",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).replace("T"," ").slice(0,16);
+    const snap = {};
+    watches.filter(w => s.present.includes(w.id)).forEach(w => snap[w.id] = {...w});
+    history[key] = snap;
+  });
+  return history;
+}
+</script>
+</body>
+</html>
